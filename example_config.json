@@ -1,0 +1,29 @@
+{
+    "models": [
+        {
+            "category": ["deepseek", "free"],
+            "name": "deepseek/deepseek-r1-zero:free",
+            "url": "https://openrouter.ai/api/v1/chat/completions",
+            "api_key": "sk-or-v1-########"
+        },
+        {
+            "category": ["deepseek", "free"],
+            "name": "qwen2.5-coder-14b-instruct",
+            "url": "http://100.116.95.44:1234/v1/chat/completions",
+            "api_key": ""
+        },
+        {
+            "category": ["gemini"],
+            "name": "google/gemini-2.0-flash-001",
+            "url": "https://openrouter.ai/api/v1/chat/completions",
+            "api_key": "sk-or-v1-########"
+        }
+    ],
+    "api_keys":
+    {
+        "gemini": "API_KEY",
+        "deepseek": "API_KEY",
+        "free": ""
+    },
+    "default_category": "deepseek"
+}
