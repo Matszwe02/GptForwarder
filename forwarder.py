@@ -2,6 +2,9 @@ from flask import Flask, request, jsonify
 import json
 import traceback
 import requests
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 app = Flask(__name__)
@@ -38,34 +41,37 @@ def chat_completions():
         if model_name not in model_config['category']: continue
         name = model_config["name"]
         
-        print(f'using {name}')
+        logging.info(f'Using model: {name}')
         
         api_key = config['api_keys'][model_name]
         if api_key and request.headers.get('Authorization') != f'Bearer {api_key}':
-            print(f'API key invalid for {name}')
+            logging.warning(f'API key invalid for {name}')
             continue
         
-        # headers = {}
-        headers = dict(request.headers)
-        headers.pop('Host', None)
+        headers = {}
         
         payload = dict(request.json)
         headers['Authorization'] = f'Bearer {model_config["api_key"]}'
         payload['model'] = name
         try:
+            logging.debug(f'posting request for {model_config["url"]}')
+            logging.debug(f'{payload=}')
             response = requests.post(model_config['url'], headers=headers, json=payload)
-            if response.status_code >= 300: continue
+            if response.status_code >= 300:
+                logging.warning(f'LLM Call failed with response code {response.status_code} and message {response.text}')
+                continue
             try:
                 provider_error = json.loads(response.text.split('data:')[1]).get('error')
                 if provider_error is not None:
                     print(f'PROVIDER ERROR: {provider_error}')
                     continue
-            except: pass
+            except:
+                logging.error(traceback.format_exc())
             return response.text, response.status_code
         except:
-            traceback.print_exc()
+            logging.error(traceback.format_exc())
 
-    print('No available models responded')
+    logging.error('No available models responded')
     return jsonify({"error": "No available models responded"}), 500
 if __name__ == '__main__':
     app.run(port=5000)
