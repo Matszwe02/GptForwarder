@@ -18,7 +18,7 @@ self_models = list(set(self_models))
 
 @app.route('/')
 def main():
-    return "API endpoints:\n/api/v1/models\n/api/v1/chat/completions"
+    return "<h1>API endpoints:</h1><ul><li>/api/v1/models</li><li>/api/v1/chat/completions</li></ul>"
 
 
 @app.route('/api/v1/models', methods=['GET'])
