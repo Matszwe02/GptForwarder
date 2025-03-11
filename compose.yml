@@ -1,0 +1,7 @@
+services:
+  forwarder:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./config.json:/app/config.json

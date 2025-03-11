@@ -6,7 +6,7 @@ import requests
 
 app = Flask(__name__)
 
-with open('../config.json', 'r') as f:
+with open('config.json', 'r') as f:
     config = json.load(f)
 
 models = config['models']
@@ -63,4 +63,4 @@ def chat_completions():
     print('No available models responded')
     return jsonify({"error": "No available models responded"}), 500
 if __name__ == '__main__':
-    app.run(port=3000)
+    app.run(port=5000)
