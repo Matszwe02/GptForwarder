@@ -6,7 +6,7 @@ import requests
 
 app = Flask(__name__)
 
-with open('config.json', 'r') as f:
+with open('config/config.json', 'r') as f:
     config = json.load(f)
 
 models = config['models']
