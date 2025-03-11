@@ -16,6 +16,11 @@ for i in models:
     self_models.extend(i['category'])
 self_models = list(set(self_models))
 
+@app.route('/')
+def main():
+    return "API endpoints:\n/api/v1/models\n/api/v1/chat/completions"
+
+
 @app.route('/api/v1/models', methods=['GET'])
 def get_models():
     model_list = [{"id": model_name} for model_name in self_models]
