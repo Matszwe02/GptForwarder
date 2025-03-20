@@ -32,8 +32,9 @@ def get_models():
 @app.route('/api/v1/chat/completions', methods=['POST'])
 def chat_completions():
     request_data = json.loads(request.get_data(as_text=True))
-
+    stream_response = request_data.get('stream', False)
     model_name = request_data.get('model', config.get('default_category'))
+    
     if not model_name:
         return jsonify({"error": "Model name not provided"}), 400
 
@@ -56,22 +57,43 @@ def chat_completions():
         try:
             logging.debug(f'posting request for {model_config["url"]}')
             logging.debug(f'{payload=}')
-            response = requests.post(model_config['url'], headers=headers, json=payload)
-            if response.status_code >= 300:
-                logging.warning(f'LLM Call failed with response code {response.status_code} and message {response.text}')
-                continue
-            try:
-                provider_error = json.loads(response.text.split('data:')[1]).get('error')
-                if provider_error is not None:
-                    print(f'PROVIDER ERROR: {provider_error}')
-                    continue
-            except:
-                logging.error(traceback.format_exc())
-            return response.text, response.status_code
+            
+            if stream_response:
+                def generate():
+                    try:
+                        response = requests.post(model_config['url'], headers=headers, json=payload, stream=True)
+                        if response.status_code >= 300:
+                            logging.warning(f'LLM Call failed with response code {response.status_code} and message {response.text}')
+                            yield f"Error: LLM call failed with status code {response.status_code}\n".encode()
+                            return
+                        
+                        for chunk in response.iter_content(chunk_size=128):
+                            yield chunk
+                            
+                    except Exception as e:
+                        logging.error(traceback.format_exc())
+                        yield f"An error occurred during streaming: {e}".encode()
+                        
+                    finally:
+                        if 'response' in locals():
+                            response.close()
+                
+                return app.response_class(generate(), mimetype='text/plain')
+            else:
+                try:
+                    response = requests.post(model_config['url'], headers=headers, json=payload)
+                    if response.status_code >= 300:
+                        logging.warning(f'LLM Call failed with response code {response.status_code} and message {response.text}')
+                    return response.text, response.status_code
+                except:
+                    logging.error(traceback.format_exc())
+        
         except:
             logging.error(traceback.format_exc())
 
     logging.error('No available models responded')
     return jsonify({"error": "No available models responded"}), 500
+
+
 if __name__ == '__main__':
     app.run(port=5000)
