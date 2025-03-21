@@ -13,12 +13,9 @@ completion = client.chat.completions.create(
       "role": "user",
       "content": "What is the meaning of life?"
     }
-  ],
-  stream=True
+  ]
 )
 try:
-    for chunk in completion:
-        print(chunk.choices[0].delta.content or "", end="", flush=True)
-    print()
+    print(completion.choices[0].message.content)
 except Exception as e:
     print(f"Error in test_forwarder: {e}")

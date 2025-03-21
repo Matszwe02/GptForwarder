@@ -6,7 +6,7 @@ import requests
 import logging
 import threading
 
-logging.basicConfig(level=logging.INFO, format='test: %(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='test: %(asctime)s - %(levelname)s - %(message)s')
 
 venv_python_executable = sys.executable.replace("pythonw.exe", "python.exe") if "pythonw.exe" in sys.executable else sys.executable
 
@@ -16,8 +16,8 @@ def log_subprocess_output(pipe, logger, level):
 
 proc = subprocess.Popen([venv_python_executable, "forwarder.py"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
-stdout_thread = threading.Thread(target=log_subprocess_output, args=(proc.stdout, logging.getLogger("stdout"), logging.INFO))
-stderr_thread = threading.Thread(target=log_subprocess_output, args=(proc.stderr, logging.getLogger("stderr"), logging.ERROR))
+stdout_thread = threading.Thread(target=log_subprocess_output, args=(proc.stdout, logging.getLogger("stdout"), logging.DEBUG))
+stderr_thread = threading.Thread(target=log_subprocess_output, args=(proc.stderr, logging.getLogger("stderr"), logging.DEBUG))
 stdout_thread.daemon = True
 stderr_thread.daemon = True
 stdout_thread.start()
@@ -25,8 +25,34 @@ stderr_thread.start()
 
 time.sleep(1)
 
-logging.info(f"{requests.get('http://localhost:5000').text}")
+logging.info(f"server status: {requests.get('http://localhost:5000').status_code}")
 
+
+
+client = OpenAI(
+  base_url="http://localhost:5000/api/v1",
+  api_key="any_key_if_undefined",
+)
+
+start_time = time.time()
+
+completion = client.chat.completions.create(
+  extra_body={},
+  model="free",
+  messages=[
+    {
+      "role": "user",
+      "content": "What is the meaning of life?"
+    }
+  ]
+)
+try:
+    print(completion.choices[0].message.content)
+except Exception as e:
+    print(f"Error in test_forwarder: {e}")
+
+
+logging.info(f'Non-Streaming resp duration: {time.time() - start_time:.2f}s')
 
 client = OpenAI(
   base_url="http://localhost:5000/api/v1",
