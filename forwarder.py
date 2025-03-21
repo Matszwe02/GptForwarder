@@ -3,8 +3,10 @@ import json
 import traceback
 import requests
 import logging
+from werkzeug.wrappers import Response
+from flask import stream_with_context
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 app = Flask(__name__)
@@ -56,20 +58,20 @@ def chat_completions():
         try:
             logging.debug(f'posting request for {model_config["url"]}')
             logging.debug(f'{payload=}')
-            response = requests.post(model_config['url'], headers=headers, json=payload)
+            response = requests.post(model_config['url'], headers=headers, json=payload, stream=True, timeout=1)
             if response.status_code >= 300:
                 logging.warning(f'LLM Call failed with response code {response.status_code} and message {response.text}')
                 continue
-            try:
-                provider_error = json.loads(response.text.split('data:')[1]).get('error')
-                if provider_error is not None:
-                    print(f'PROVIDER ERROR: {provider_error}')
-                    continue
-            except:
-                logging.error(traceback.format_exc())
-            return response.text, response.status_code
-        except:
-            logging.error(traceback.format_exc())
+
+            def generate():
+                for chunk in response.iter_content(chunk_size=None):
+                    print('receive')
+                    yield chunk
+
+            return Response(stream_with_context(generate()), mimetype=response.headers.get('Content-Type', 'text/plain')), response.status_code
+
+        except Exception as e:
+            logging.warning(e)
 
     logging.error('No available models responded')
     return jsonify({"error": "No available models responded"}), 500
