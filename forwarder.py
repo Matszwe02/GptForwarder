@@ -5,8 +5,9 @@ import requests
 import logging
 from werkzeug.wrappers import Response
 from flask import stream_with_context
+import os
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=os.environ.get("LOGGING_LEVEL", "info").upper(), format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 app = Flask(__name__)
@@ -42,8 +43,9 @@ def chat_completions():
     for model_config in models:
         if model_name not in model_config['category']: continue
         name = model_config["name"]
+        url = model_config['url']
         
-        logging.info(f'Using model: {name}')
+        logging.info(f'Using model: {name} ({name})')
         
         api_key = config['api_keys'][model_name]
         if api_key and request.headers.get('Authorization') != f'Bearer {api_key}':
@@ -56,9 +58,9 @@ def chat_completions():
         headers['Authorization'] = f'Bearer {model_config["api_key"]}'
         payload['model'] = name
         try:
-            logging.debug(f'posting request for {model_config["url"]} ({model_config["name"]})')
+            logging.debug(f'posting request for {url}')
             logging.debug(f'{payload=}')
-            response = requests.post(model_config['url'], headers=headers, json=payload, stream=True, timeout=2)
+            response = requests.post(url, headers=headers, json=payload, stream=True, timeout=2)
             if response.status_code >= 300:
                 logging.warning(f'LLM Call failed with response code {response.status_code} and message {response.text}')
                 continue
@@ -68,7 +70,7 @@ def chat_completions():
                     logging.debug('streaming')
                     yield chunk
 
-            logging.info(f'returning resp with {model_config["url"]} ({model_config["name"]})')
+            logging.info(f'returning resp with {url} ({name})')
             return Response(stream_with_context(generate()), mimetype=response.headers.get('Content-Type', 'text/plain')), response.status_code
 
         except Exception as e:
