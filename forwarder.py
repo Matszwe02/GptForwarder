@@ -58,14 +58,13 @@ def chat_completions():
         try:
             logging.debug(f'posting request for {model_config["url"]}')
             logging.debug(f'{payload=}')
-            response = requests.post(model_config['url'], headers=headers, json=payload, stream=True, timeout=1)
+            response = requests.post(model_config['url'], headers=headers, json=payload, stream=True, timeout=2)
             if response.status_code >= 300:
                 logging.warning(f'LLM Call failed with response code {response.status_code} and message {response.text}')
                 continue
 
             def generate():
                 for chunk in response.iter_content(chunk_size=None):
-                    print('receive')
                     yield chunk
 
             return Response(stream_with_context(generate()), mimetype=response.headers.get('Content-Type', 'text/plain')), response.status_code
