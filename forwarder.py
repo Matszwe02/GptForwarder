@@ -6,6 +6,8 @@ import logging
 from werkzeug.wrappers import Response
 from flask import stream_with_context
 import os
+import threading
+import queue
 
 logging.basicConfig(level=os.environ.get("LOGGING_LEVEL", "info").upper(), format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -65,11 +67,47 @@ def chat_completions():
                 logging.warning(f'LLM Call failed with response code {response.status_code} and message {response.text}')
                 continue
 
-            def generate():
-                for chunk in response.iter_content(chunk_size=None):
-                    logging.debug('streaming')
-                    yield chunk
+            chunk_queue = queue.Queue()
+            start_generating = threading.Event()
+            error_found = False
 
+            def process_chunks():
+                nonlocal error_found
+                try:
+                    for i, chunk in enumerate(response.iter_content(chunk_size=None)):
+                        chunk_queue.put(chunk)
+                        if i < 3:
+                            try:
+                                data = json.loads(str(chunk, encoding='utf-8').removeprefix('data:'))
+                                if len(data.get('error', {}).get('message', '')) > 1:
+                                    error_found = True
+                                    start_generating.set()
+                                    return
+                            except:
+                                pass
+                        elif i < 4:
+                            start_generating.set()
+                finally:
+                    start_generating.set()
+                    chunk_queue.put(None)  # Ensure generator stops
+            
+            
+            def generate():
+
+                while True:
+                    chunk = chunk_queue.get()
+                    if chunk is None:
+                        break  # End of stream
+                    yield chunk
+            
+            
+            threading.Thread(target=process_chunks).start()
+
+            start_generating.wait()  # Wait for the first 3 chunks to be processed
+            if error_found:
+                logging.warning(f'API returned an error - switching to next model')
+                continue
+            
             logging.info(f'returning resp with {url} ({name})')
             return Response(stream_with_context(generate()), mimetype=response.headers.get('Content-Type', 'text/plain')), response.status_code
 
