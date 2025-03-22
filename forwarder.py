@@ -56,7 +56,7 @@ def chat_completions():
         headers['Authorization'] = f'Bearer {model_config["api_key"]}'
         payload['model'] = name
         try:
-            logging.debug(f'posting request for {model_config["url"]}')
+            logging.debug(f'posting request for {model_config["url"]} ({model_config["name"]})')
             logging.debug(f'{payload=}')
             response = requests.post(model_config['url'], headers=headers, json=payload, stream=True, timeout=2)
             if response.status_code >= 300:
@@ -65,8 +65,10 @@ def chat_completions():
 
             def generate():
                 for chunk in response.iter_content(chunk_size=None):
+                    logging.debug('streaming')
                     yield chunk
 
+            logging.info(f'returning resp with {model_config["url"]} ({model_config["name"]})')
             return Response(stream_with_context(generate()), mimetype=response.headers.get('Content-Type', 'text/plain')), response.status_code
 
         except Exception as e:
