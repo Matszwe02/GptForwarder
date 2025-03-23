@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 app = Flask(__name__)
 
-with open('config/config.json', 'r') as f:
+with open('../config.json', 'r') as f:
     config = json.load(f)
 
 models = config['models']
@@ -19,18 +19,17 @@ for i in models:
     self_models.extend(i['category'])
 self_models = list(set(self_models))
 
-@app.route('/')
-def main():
-    return "<h1>API endpoints:</h1><ul><li>/api/v1/models</li><li>/api/v1/chat/completions</li></ul>"
+
+def index():
+    return "<h1>API endpoints:</h1><ul><li>/*/models</li><li>/*/completions</li></ul>"
 
 
-@app.route('/api/v1/models', methods=['GET'])
-def get_models():
+def get_models(path=None):
     model_list = [{"id": model_name} for model_name in self_models]
     return jsonify({"data": model_list})
 
-@app.route('/api/v1/chat/completions', methods=['POST'])
-def chat_completions():
+
+def chat_completions(path=None):
     request_data = json.loads(request.get_data(as_text=True))
 
     model_name = request_data.get('model', config.get('default_category'))
@@ -73,5 +72,12 @@ def chat_completions():
 
     logging.error('No available models responded')
     return jsonify({"error": "No available models responded"}), 500
+
+
 if __name__ == '__main__':
+    app.add_url_rule('/', 'index', index)
+    app.add_url_rule('/<path:path>/models', 'models', get_models)
+    app.add_url_rule('/<path:path>/completions', 'completions', chat_completions)
+    app.add_url_rule('/models', 'models', get_models)
+    app.add_url_rule('/completions', 'completions', chat_completions)
     app.run(port=5000)
