@@ -9,7 +9,9 @@ import os
 import threading
 import queue
 
-logging.basicConfig(level=os.environ.get("LOGGING_LEVEL", "info").upper(), format='%(asctime)s - %(levelname)s - %(message)s')
+os.makedirs('/logs', exist_ok=True)
+
+logging.basicConfig(level=os.environ.get("LOGGING_LEVEL", "info").upper(), format='%(asctime)s - %(levelname)s - %(message)s', filename='/logs/python.log', filemode='w')
 
 
 app = Flask(__name__)
@@ -73,20 +75,22 @@ def chat_completions():
 
             def process_chunks():
                 nonlocal error_found
+                wait_for_tokens = True
                 try:
-                    for i, chunk in enumerate(response.iter_content(chunk_size=None)):
+                    for chunk in response.iter_content(chunk_size=None):
                         chunk_queue.put(chunk)
-                        if i < 3:
+                        logging.debug(f'streaming "{str(chunk, encoding='utf-8')}"')
+                        if wait_for_tokens:
                             try:
                                 data = json.loads(str(chunk, encoding='utf-8').removeprefix('data:'))
                                 if len(data.get('error', {}).get('message', '')) > 1:
                                     error_found = True
                                     start_generating.set()
                                     return
+                                wait_for_tokens = False
+                                start_generating.set()
                             except:
-                                pass
-                        elif i < 4:
-                            start_generating.set()
+                                logging.debug(f'waiting for tokens to generate')
                 finally:
                     start_generating.set()
                     chunk_queue.put(None)  # Ensure generator stops
