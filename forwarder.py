@@ -4,7 +4,9 @@ import traceback
 import requests
 import logging
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+os.makedirs('logs', exist_ok=True)
+os.makedirs('config', exist_ok=True)
+logging.basicConfig(level=os.environ.get("LOGGING_LEVEL", "info").upper(), format='%(asctime)s - %(levelname)s - %(message)s', filename='logs/python.log', filemode='w')
 
 
 app = Flask(__name__)
