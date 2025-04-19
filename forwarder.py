@@ -9,18 +9,20 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 app = Flask(__name__)
 
-with open('config/config.json', 'r') as f:
-    config = json.load(f)
 
-models = config['models']
-self_models = []
-
-for i in models:
-    self_models.extend(i['category'])
-self_models = list(set(self_models))
+def load_config():
+    global self_models, config, models
+    with open('config/config.json', 'r') as f:
+        config = json.load(f)
+    models = config['models']
+    self_models = []
+    for i in models:
+        self_models.extend(i['category'])
+    self_models = list(set(self_models))
 
 
 def index():
+    load_config()
     models_str = ''
     for i in self_models:
         models_str += f'<li>{i}</li>'
@@ -28,11 +30,13 @@ def index():
 
 
 def get_models(path=None):
+    load_config()
     model_list = [{"id": model_name} for model_name in self_models]
     return jsonify({"data": model_list})
 
 
 def chat_completions(path=None):
+    load_config()
     request_data = json.loads(request.get_data(as_text=True))
 
     model_name = request_data.get('model', config.get('default_category'))
