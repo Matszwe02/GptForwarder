@@ -1,9 +1,11 @@
 services:
   gptforwarder:
-    image: gptforwarder
-    # build: .
+    # image: gptforwarder
+    build: .
     ports:
-      - "5000:5000"
+        - "5000:5000"
     volumes:
-      - ./config:/app/config
-      - ./logs:/app/logs
+        - ./config:/app/config
+        - ./logs:/app/logs
+    environment:
+        LOGGING_LEVEL: DEBUG
