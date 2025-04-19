@@ -21,7 +21,10 @@ self_models = list(set(self_models))
 
 
 def index():
-    return "<h1>API endpoints:</h1><ul><li>/*/models</li><li>/*/completions</li></ul>"
+    models_str = ''
+    for i in self_models:
+        models_str += f'<li>{i}</li>'
+    return f"<h1>API endpoints:</h1><ul><li>/*/models</li><li>/*/completions</li></ul><h2>Available models:</h2><ul>{models_str}</ul>"
 
 
 def get_models(path=None):
