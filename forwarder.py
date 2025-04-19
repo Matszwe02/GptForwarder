@@ -42,7 +42,9 @@ def chat_completions(path=None):
     model_name = request_data.get('model', config.get('default_category'))
     if not model_name:
         return jsonify({"error": "Model name not provided"}), 400
-
+    
+    model_exceptions = []
+    
     for model_config in models:
         if model_name not in model_config['category']: continue
         name = model_config["name"]
@@ -52,6 +54,7 @@ def chat_completions(path=None):
         api_key = config['api_keys'][model_name]
         if api_key and request.headers.get('Authorization') != f'Bearer {api_key}':
             logging.warning(f'API key invalid for {name}')
+            model_exceptions.append(f'API key invalid for {name}')
             continue
         
         headers = {}
@@ -65,11 +68,13 @@ def chat_completions(path=None):
             response = requests.post(model_config['url'], headers=headers, json=payload)
             if response.status_code >= 300:
                 logging.warning(f'LLM Call failed with response code {response.status_code} and message {response.text}')
+                model_exceptions.append(f'LLM Call failed with response code {response.status_code} and message {response.text}')
                 continue
             try:
                 provider_error = json.loads(response.text.split('data:')[1]).get('error')
                 if provider_error is not None:
-                    print(f'PROVIDER ERROR: {provider_error}')
+                    logging.warning(f'PROVIDER ERROR: {provider_error}')
+                    model_exceptions.append(f'PROVIDER ERROR: {provider_error}')
                     continue
             except:
                 logging.error(traceback.format_exc())
@@ -78,7 +83,7 @@ def chat_completions(path=None):
             logging.error(traceback.format_exc())
 
     logging.error('No available models responded')
-    return jsonify({"error": "No available models responded"}), 500
+    return jsonify({"error": f"No available models responded:\n\n{'\n'.join(model_exceptions)}"}), 500
 
 
 if __name__ == '__main__':
