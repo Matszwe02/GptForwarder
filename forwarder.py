@@ -88,10 +88,11 @@ def chat_completions(path=None):
     return jsonify({"error": f"No available models responded:\n\n{'\n'.join(model_exceptions)}"}), 500
 
 
+app.add_url_rule('/', 'index', index)
+app.add_url_rule('/<path:path>/models', 'models', get_models)
+app.add_url_rule('/<path:path>/completions', 'completions', chat_completions)
+app.add_url_rule('/models', 'models', get_models)
+app.add_url_rule('/completions', 'completions', chat_completions)
+
 if __name__ == '__main__':
-    app.add_url_rule('/', 'index', index)
-    app.add_url_rule('/<path:path>/models', 'models', get_models)
-    app.add_url_rule('/<path:path>/completions', 'completions', chat_completions)
-    app.add_url_rule('/models', 'models', get_models)
-    app.add_url_rule('/completions', 'completions', chat_completions)
     app.run(port=5000)
