@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 app = Flask(__name__)
 
-with open('../config.json', 'r') as f:
+with open('config/config.json', 'r') as f:
     config = json.load(f)
 
 models = config['models']
