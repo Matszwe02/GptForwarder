@@ -8,4 +8,4 @@ services:
         - ./config:/app/config
         - ./logs:/app/logs
     environment:
-        LOGGING_LEVEL: DEBUG
+        LOGGING_LEVEL: WARNING

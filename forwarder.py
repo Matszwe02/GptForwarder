@@ -10,7 +10,7 @@ import queue
 
 os.makedirs('logs', exist_ok=True)
 os.makedirs('config', exist_ok=True)
-logging.basicConfig(level=os.environ.get("LOGGING_LEVEL", "info").upper(), format='%(asctime)s - %(levelname)s - %(message)s', filename='logs/python.log', filemode='a')
+logging.basicConfig(level=os.environ.get("LOGGING_LEVEL", "warning").upper(), format='%(asctime)s - %(levelname)s - %(message)s', filename='logs/python.log', filemode='a')
 
 logging.info('Starting app')
 app = Flask(__name__)
