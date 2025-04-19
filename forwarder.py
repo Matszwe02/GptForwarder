@@ -6,28 +6,33 @@ import logging
 
 os.makedirs('logs', exist_ok=True)
 os.makedirs('config', exist_ok=True)
-logging.basicConfig(level=os.environ.get("LOGGING_LEVEL", "info").upper(), format='%(asctime)s - %(levelname)s - %(message)s', filename='logs/python.log', filemode='w')
+logging.basicConfig(level=os.environ.get("LOGGING_LEVEL", "info").upper(), format='%(asctime)s - %(levelname)s - %(message)s', filename='logs/python.log', filemode='a')
 
-
+logging.info('Starting app')
 app = Flask(__name__)
 
 
 def load_config():
     global self_models, config, models
-    with open('config/config.json', 'r') as f:
-        config = json.load(f)
-    models = config['models']
-    self_models = []
-    for i in models:
-        self_models.extend(i['category'])
-    self_models = list(set(self_models))
+    try:
+        with open('config/config.json', 'r') as f:
+            config = json.load(f)
+        models = config['models']
+        self_models = []
+        for i in models:
+            self_models.extend(i['category'])
+        self_models = list(set(self_models))
+    except Exception as e:
+        logging.error(f'Cannot read or parse config! {e}')
 
 
 def index():
     load_config()
     models_str = ''
-    for i in self_models:
-        models_str += f'<li>{i}</li>'
+    try:
+        for i in self_models:
+            models_str += f'<li>{i}</li>'
+    except: pass
     return f"<h1>API endpoints:</h1><ul><li>/*/models</li><li>/*/completions</li></ul><h2>Available models:</h2><ul>{models_str}</ul>"
 
 
