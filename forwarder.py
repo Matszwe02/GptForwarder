@@ -16,16 +16,21 @@ logging.info('Starting app')
 app = Flask(__name__)
 
 
+config = {}
+models = []
+categories = []
+
+
 def load_config():
-    global self_models, config, models
+    global categories, config, models
     try:
         with open('config/config.json', 'r') as f:
             config = json.load(f)
         models = config['models']
-        self_models = []
+        categories = []
         for i in models:
-            self_models.extend(i['category'])
-        self_models = list(set(self_models))
+            categories.extend(i['category'])
+        categories = list(set(categories))
     except Exception as e:
         logging.error(f'Cannot read or parse config! {e}')
 
@@ -34,7 +39,7 @@ def index():
     load_config()
     models_str = ''
     try:
-        for i in self_models:
+        for i in categories:
             models_str += f'<li>{i}</li>'
     except: pass
     return f"<h1>API endpoints:</h1><ul><li>/*/models</li><li>/*/completions</li></ul><h2>Available models:</h2><ul>{models_str}</ul>"
@@ -42,7 +47,7 @@ def index():
 
 def get_models(path=None):
     load_config()
-    model_list = [{"id": model_name} for model_name in self_models]
+    model_list = [{"id": category} for category in categories]
     return jsonify({"data": model_list})
 
 
@@ -51,20 +56,20 @@ def chat_completions(path=None):
     load_config()
     request_data = json.loads(request.get_data(as_text=True))
 
-    model_name = request_data.get('model', config.get('default_category'))
-    if not model_name:
+    category = request_data.get('model', config.get('default_category'))
+    if not category:
         return jsonify({"error": "Model name not provided"}), 400
     
     model_exceptions = []
     
     for model_config in models:
-        if model_name not in model_config['category']: continue
+        if category not in model_config['category']: continue
         name = model_config["name"]
         url = model_config['url']
         
-        logging.info(f'Using model: {name} ({model_name})')
+        logging.info(f'Using model: {name} ({category})')
         
-        api_key = config['api_keys'][model_name]
+        api_key = config['api_keys'][category]
         if api_key and request.headers.get('Authorization') != f'Bearer {api_key}':
             logging.warning(f'API key invalid for {name}')
             model_exceptions.append(f'API key invalid for {name}')
