@@ -66,7 +66,6 @@ def chat_completions(path=None):
         if category not in model_config['category']: continue
         name = model_config["name"]
         url = model_config['url']
-        url = model_config['url']
         
         logging.info(f'Using model: {name} ({category})')
         
@@ -84,7 +83,6 @@ def chat_completions(path=None):
         try:
             logging.info(f'posting request for {url}')
             logging.debug(f'{payload=}')
-            response = requests.post(url, headers=headers, json=payload, stream=True, timeout=2)
             response = requests.post(url, headers=headers, json=payload, stream=True, timeout=2)
             if response.status_code >= 300:
                 logging.warning(f'LLM Call failed with response code {response.status_code} and message {response.text}')
