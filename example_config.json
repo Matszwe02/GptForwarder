@@ -4,13 +4,15 @@
             "category": ["deepseek", "free"],
             "name": "deepseek/deepseek-r1-zero:free",
             "url": "https://openrouter.ai/api/v1/chat/completions",
-            "api_key": "sk-or-v1-########"
+            "api_key": "sk-or-v1-########",
+            "latch": true
         },
         {
             "category": ["deepseek", "free"],
             "name": "qwen2.5-coder-14b-instruct",
             "url": "http://100.116.95.44:1234/v1/chat/completions",
-            "api_key": ""
+            "api_key": "",
+            "latch": true
         },
         {
             "category": ["gemini"],
