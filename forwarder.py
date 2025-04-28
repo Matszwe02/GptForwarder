@@ -89,6 +89,15 @@ def chat_completions(path=None):
                 default_models[category] = model_config['name']
                 return response
     
+    for model_config in models:
+        if category not in model_config['category']:
+            continue
+        if model_config.get('latch', False) == False:
+            logging.info(f'Trying latch model: {model_config["name"]} ({category})')
+            response = process_model_request(model_config, request_data, category, model_exceptions)
+            if response:
+                return response
+    
     logging.error(f"No available models responded: {'; '.join(model_exceptions)}")
     return jsonify({"error": f"No available models responded:\n\n{'\n'.join(model_exceptions)}"}), 500
 
