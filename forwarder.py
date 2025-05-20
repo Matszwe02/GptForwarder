@@ -6,6 +6,7 @@ import logging
 import os
 import threading
 import queue
+import time
 
 
 os.makedirs('logs', exist_ok=True)
@@ -20,10 +21,12 @@ config = {}
 models = []
 categories = []
 default_models = {}  # Category: model_name
+retries = 0
+retry_delay = 0
 
 
 def load_config():
-    global categories, config, models
+    global categories, config, models, retries, retry_delay
     try:
         with open('config/config.json', 'r') as f:
             config = json.load(f)
@@ -32,6 +35,8 @@ def load_config():
         for i in models:
             categories.extend(i['category'])
         categories = list(set(categories))
+        retries = max(config.get('retries', 0), 0)
+        retry_delay = max(config.get('retry_delay', 0), 0)
     except Exception as e:
         logging.error(f'Cannot read or parse config! {e}')
 
@@ -79,24 +84,26 @@ def chat_completions(path=None):
                 logging.warning(f'Default model {default_model_name} failed, removing default.')
                 default_models.pop(category, None)
     
-    for model_config in models:
-        if category not in model_config['category']:
-            continue
-        if model_config.get('latch', False) == True:
-            logging.info(f'Trying latch model: {model_config["name"]} ({category})')
-            response = process_model_request(model_config, request_data, category, model_exceptions)
-            if response:
-                default_models[category] = model_config['name']
-                return response
-    
-    for model_config in models:
-        if category not in model_config['category']:
-            continue
-        if model_config.get('latch', False) == False:
-            logging.info(f'Trying latch model: {model_config["name"]} ({category})')
-            response = process_model_request(model_config, request_data, category, model_exceptions)
-            if response:
-                return response
+    for _ in range(retries + 1):
+        for model_config in models:
+            if category not in model_config['category']:
+                continue
+            if model_config.get('latch', False) == True:
+                logging.info(f'Trying latch model: {model_config["name"]} ({category})')
+                response = process_model_request(model_config, request_data, category, model_exceptions)
+                if response:
+                    default_models[category] = model_config['name']
+                    return response
+        
+        for model_config in models:
+            if category not in model_config['category']:
+                continue
+            if model_config.get('latch', False) == False:
+                logging.info(f'Trying latch model: {model_config["name"]} ({category})')
+                response = process_model_request(model_config, request_data, category, model_exceptions)
+                if response:
+                    return response
+        time.sleep(retry_delay)
     
     logging.error(f"No available models responded: {'; '.join(model_exceptions)}")
     return jsonify({"error": f"No available models responded:\n\n{'\n'.join(model_exceptions)}"}), 500

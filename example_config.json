@@ -27,5 +27,7 @@
         "deepseek": "API_KEY",
         "free": ""
     },
-    "default_category": "deepseek"
+    "default_category": "deepseek",
+    "retries": 2,
+    "retry_delay": 2
 }
