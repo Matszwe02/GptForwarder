@@ -180,6 +180,10 @@ def process_model_request(model_config, request_data, category, model_exceptions
         logging.info(f'returning resp with {url} ({name})')
         return Response(stream_with_context(generate()), mimetype=response.headers.get('Content-Type', 'text/plain')), response.status_code
     
+    except requests.exceptions.Timeout as e:
+        logging.warning(f'LLM Call timed out: {e}')
+        model_exceptions.append(f'LLM Call timed out: {e}')
+        return None
     except Exception as e:
         logging.warning(e)
         model_exceptions.append(f'Python Error: {e}')
