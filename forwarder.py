@@ -89,7 +89,7 @@ def chat_completions(path=None):
             if category not in model_config['category']:
                 continue
             if model_config.get('latch', False) == True:
-                logging.info(f'Trying latch model: {model_config["name"]} ({category})')
+                logging.info(f'Trying latched model: {model_config["name"]} ({category})')
                 response = process_model_request(model_config, request_data, category, model_exceptions)
                 if response:
                     default_models[category] = model_config['name']
@@ -99,7 +99,7 @@ def chat_completions(path=None):
             if category not in model_config['category']:
                 continue
             if model_config.get('latch', False) == False:
-                logging.info(f'Trying latch model: {model_config["name"]} ({category})')
+                logging.info(f'Trying model: {model_config["name"]} ({category})')
                 response = process_model_request(model_config, request_data, category, model_exceptions)
                 if response:
                     return response
