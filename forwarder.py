@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, stream_with_context
+from flask import Flask, request, jsonify, stream_with_context, render_template
 from werkzeug.wrappers import Response
 import json
 import requests
@@ -7,6 +7,8 @@ import os
 import threading
 import queue
 import time
+from collections import defaultdict
+import re
 
 
 os.makedirs('logs', exist_ok=True)
@@ -24,6 +26,31 @@ default_models = {}  # Category: model_name
 retries = 0
 retry_delay = 0
 
+request_timestamps = defaultdict(list)
+
+
+get_friendly_name = lambda model_config: f"{model_config['name']} ({re.search(r'[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})(\.[a-zA-Z0-9]{2,})?', model_config['url']).group()})"
+
+
+
+def record_request(model_config):
+    timestamp = time.time()
+    one_week_ago = timestamp - (7 * 24 * 3600)
+    model_friendly_name = get_friendly_name(model_config)
+
+    request_timestamps[model_friendly_name] = [ts for ts in request_timestamps[model_friendly_name] if ts > one_week_ago]
+    request_timestamps[model_friendly_name].append(timestamp)
+
+
+def get_request_counts(model_identifier):
+    now = time.time()
+    one_hour_ago = now - 3600
+    one_day_ago = now - 86400
+
+    last_hour_count = sum(1 for ts in request_timestamps[model_identifier] if ts > one_hour_ago)
+    last_day_count = sum(1 for ts in request_timestamps[model_identifier] if ts > one_day_ago)
+    return last_hour_count, last_day_count
+
 
 def load_config():
     global categories, config, models, retries, retry_delay
@@ -40,15 +67,6 @@ def load_config():
     except Exception as e:
         logging.error(f'Cannot read or parse config! {e}')
 
-
-def index():
-    load_config()
-    models_str = ''
-    try:
-        for i in categories:
-            models_str += f'<li>{i}</li>'
-    except: pass
-    return f"<h1>API endpoints:</h1><ul><li>/*/models</li><li>/*/completions</li></ul><h2>Available models:</h2><ul>{models_str}</ul>"
 
 
 def get_models(path=None):
@@ -178,6 +196,8 @@ def process_model_request(model_config, request_data, category, model_exceptions
             return None
         
         logging.info(f'returning resp with {url} ({name})')
+        record_request(model_config) # Record the request
+        
         return Response(stream_with_context(generate()), mimetype=response.headers.get('Content-Type', 'text/plain')), response.status_code
     
     except requests.exceptions.Timeout as e:
@@ -190,15 +210,25 @@ def process_model_request(model_config, request_data, category, model_exceptions
         return None
 
 
+def index():
+    load_config()
+    model_stats = {}
+    for model_config in models:
+        last_hour, last_day = get_request_counts(get_friendly_name(model_config))
+        model_stats[get_friendly_name(model_config)] = {'last_hour': last_hour, 'last_day': last_day}
+    return render_template('index.html', categories=categories, model_stats=model_stats)
+
+
 def chat():
     return render_template('chat.html')
 
-app.add_url_rule('/chat', 'chat', chat)
-app.add_url_rule('/', 'index', index)
+
 app.add_url_rule('/<path:path>/models', 'models', get_models)
 app.add_url_rule('/<path:path>/completions', 'completions', chat_completions, methods=['POST'])
 app.add_url_rule('/models', 'models', get_models)
 app.add_url_rule('/completions', 'completions', chat_completions, methods=['POST'])
+app.add_url_rule('/', 'index', index)
+app.add_url_rule('/chat', 'chat', chat)
 
 if __name__ == '__main__':
     app.run(port=5000)
