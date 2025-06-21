@@ -7,6 +7,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY forwarder.py .
+COPY templates/ .
+COPY static/ .
 
 EXPOSE 5000
 ENV FLASK_APP=forwarder.py
