@@ -25,7 +25,7 @@ categories = []
 retries = 0
 retry_delay = 0
 
-SHARED_STATE_FILE = './shared_state.json'
+SHARED_STATE_FILE = 'config/shared_state.json'
 SHARED_STATE_LOCK_FILE = './shared_state.lock'
 
 default_models = {}  # Category: model_name
