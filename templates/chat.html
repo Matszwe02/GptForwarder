@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Chat</h1>
+
+        <div class="settings">
+            <label for="model-select">Model:</label>
+            <select id="model-select"></select>
+
+            <label for="api-key-input">API Key:</label>
+            <input type="password" id="api-key-input" placeholder="Enter your API Key">
+        </div>
+
+        <div class="chat-window" id="chat-window">
+            <!-- Chat messages will be appended here -->
+        </div>
+
+        <div class="input-area">
+            <textarea id="user-input" placeholder="Type your message here..."></textarea>
+            <button id="send-button">Send</button>
+        </div>
+        <div id="error-message" class="error-message"></div>
+    </div>
+
+    <script>
+        const modelSelect = document.getElementById('model-select');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const chatWindow = document.getElementById('chat-window');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const errorMessageDiv = document.getElementById('error-message');
+
+        let currentConversation = [];
+
+        async function fetchModels() {
+            try {
+                const response = await fetch('/models');
+                const data = await response.json();
+                modelSelect.innerHTML = '';
+                data.data.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.id;
+                    modelSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching models:', error);
+                displayError('Failed to load models. Please check the server.');
+            }
+        }
+
+        function displayMessage(message, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(sender === 'user' ? 'user-message' : 'llm-message');
+            messageDiv.textContent = message;
+            chatWindow.appendChild(messageDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function displayError(message) {
+            errorMessageDiv.textContent = message;
+        }
+
+        sendButton.addEventListener('click', async () => {
+            const message = userInput.value.trim();
+            const selectedModel = modelSelect.value;
+            const apiKey = apiKeyInput.value.trim();
+
+            if (!message) {
+                displayError('Please enter a message.');
+                return;
+            }
+            if (!selectedModel) {
+                displayError('Please select a model.');
+                return;
+            }
+            if (!apiKey) {
+                displayError('Please enter your API Key.');
+                return;
+            }
+
+            displayError(''); // Clear previous errors
+            displayMessage(message, 'user');
+            userInput.value = '';
+
+            currentConversation.push({ role: 'user', content: message });
+
+            try {
+                const response = await fetch('/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        messages: currentConversation,
+                        stream: true
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let llmResponseContent = '';
+                let llmMessageDiv = document.createElement('div');
+                llmMessageDiv.classList.add('message', 'llm-message');
+                chatWindow.appendChild(llmMessageDiv);
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data:')) {
+                            const data = line.substring(5).trim();
+                            if (data === '[DONE]') {
+                                break;
+                            }
+                            try {
+                                const json = JSON.parse(data);
+                                const content = json.choices[0].delta.content;
+                                if (content) {
+                                    llmResponseContent += content;
+                                    llmMessageDiv.innerHTML = llmResponseContent.replace(/\n/g, '<br>');
+                                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                                }
+                            } catch (e) {
+                                console.warn('Could not parse JSON from chunk:', data, e);
+                            }
+                        }
+                    }
+                }
+                currentConversation.push({ role: 'assistant', content: llmResponseContent });
+
+            } catch (error) {
+                console.error('Error sending message:', error);
+                displayError(`Error: ${error.message}`);
+                currentConversation.pop(); // Remove the user message if LLM response failed
+            }
+        });
+
+        // Initial fetch of models when the page loads
+        fetchModels();
+    </script>
+</body>
+</html>

@@ -190,6 +190,10 @@ def process_model_request(model_config, request_data, category, model_exceptions
         return None
 
 
+def chat():
+    return render_template('chat.html')
+
+app.add_url_rule('/chat', 'chat', chat)
 app.add_url_rule('/', 'index', index)
 app.add_url_rule('/<path:path>/models', 'models', get_models)
 app.add_url_rule('/<path:path>/completions', 'completions', chat_completions, methods=['POST'])
