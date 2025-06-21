@@ -9,6 +9,7 @@ import queue
 import time
 from collections import defaultdict
 import re
+import fcntl # For file locking
 
 
 os.makedirs('logs', exist_ok=True)
@@ -18,16 +19,44 @@ logging.basicConfig(level=os.environ.get("LOGGING_LEVEL", "warning").upper(), fo
 logging.info('Starting app')
 app = Flask(__name__)
 
-
 config = {}
 models = []
 categories = []
-default_models = {}  # Category: model_name
 retries = 0
 retry_delay = 0
 
+SHARED_STATE_FILE = './shared_state.json'
+SHARED_STATE_LOCK_FILE = './shared_state.lock'
+
+default_models = {}  # Category: model_name
 request_timestamps = defaultdict(list)
 
+def load_shared_state():
+    global default_models, request_timestamps
+    try:
+        with open(SHARED_STATE_FILE, 'r') as f:
+            state = json.load(f)
+            default_models = state.get('default_models', {})
+            loaded_timestamps = state.get('request_timestamps', {})
+            request_timestamps = defaultdict(list, {k: v for k, v in loaded_timestamps.items()})
+    except Exception as e:
+        logging.error(f'Error loading shared state: {e}')
+
+def save_shared_state():
+    try:
+        with open(SHARED_STATE_LOCK_FILE, 'w') as lock_file:
+            fcntl.flock(lock_file, fcntl.LOCK_EX) # Acquire exclusive lock
+            state = {
+                'default_models': default_models,
+                'request_timestamps': dict(request_timestamps) # Convert defaultdict to dict for serialization
+            }
+            with open(SHARED_STATE_FILE, 'w') as f:
+                json.dump(state, f, indent=4)
+            fcntl.flock(lock_file, fcntl.LOCK_UN) # Release lock
+    except Exception as e:
+        logging.error(f'Error saving shared state: {e}')
+
+load_shared_state()
 
 get_friendly_name = lambda model_config: f"{model_config['name']} ({re.search(r'[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})(\.[a-zA-Z0-9]{2,})?', model_config['url']).group()})"
 
@@ -54,6 +83,7 @@ def get_request_counts(model_identifier):
 
 def load_config():
     global categories, config, models, retries, retry_delay
+    load_shared_state()
     try:
         with open('config/config.json', 'r') as f:
             config = json.load(f)
@@ -100,7 +130,9 @@ def chat_completions(path=None):
                 return response
             else:
                 logging.warning(f'Default model {default_model_name} failed, removing default.')
+                load_shared_state()
                 default_models.pop(category, None)
+                save_shared_state()
     
     for _ in range(retries + 1):
         for model_config in models:
@@ -110,7 +142,9 @@ def chat_completions(path=None):
                 logging.info(f'Trying latched model: {model_config["name"]} ({category})')
                 response = process_model_request(model_config, request_data, category, model_exceptions)
                 if response:
+                    load_shared_state()
                     default_models[category] = model_config['name']
+                    save_shared_state()
                     return response
         
         for model_config in models:
@@ -196,7 +230,9 @@ def process_model_request(model_config, request_data, category, model_exceptions
             return None
         
         logging.info(f'returning resp with {url} ({name})')
+        load_shared_state()
         record_request(model_config) # Record the request
+        save_shared_state()
         
         return Response(stream_with_context(generate()), mimetype=response.headers.get('Content-Type', 'text/plain')), response.status_code
     
