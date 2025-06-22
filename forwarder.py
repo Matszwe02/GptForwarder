@@ -75,10 +75,12 @@ def get_request_counts(model_identifier):
     now = time.time()
     one_hour_ago = now - 3600
     one_day_ago = now - 86400
+    one_week_ago = now - (7 * 24 * 3600)
 
     last_hour_count = sum(1 for ts in request_timestamps[model_identifier] if ts > one_hour_ago)
     last_day_count = sum(1 for ts in request_timestamps[model_identifier] if ts > one_day_ago)
-    return last_hour_count, last_day_count
+    last_week_count = sum(1 for ts in request_timestamps[model_identifier] if ts > one_week_ago)
+    return last_hour_count, last_day_count, last_week_count
 
 
 def load_config():
@@ -250,8 +252,8 @@ def index():
     load_config()
     model_stats = {}
     for model_config in models:
-        last_hour, last_day = get_request_counts(get_friendly_name(model_config))
-        model_stats[get_friendly_name(model_config)] = {'last_hour': last_hour, 'last_day': last_day}
+        last_hour, last_day, last_week = get_request_counts(get_friendly_name(model_config))
+        model_stats[get_friendly_name(model_config)] = {'last_hour': last_hour, 'last_day': last_day, 'last_week': last_week}
     return render_template('index.html', categories=categories, model_stats=model_stats)
 
 

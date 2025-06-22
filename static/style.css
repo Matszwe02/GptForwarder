@@ -19,6 +19,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    overflow-x: auto; /* Add horizontal scroll for narrow viewports */
 }
 
 h1 {
